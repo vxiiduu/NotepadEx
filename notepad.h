@@ -23,6 +23,10 @@ typedef enum _NP_FILETYPE {
    FT_UTF8=3,
 } NP_FILETYPE;
 
+typedef enum _NP_LINETYPE {
+	LT_WINDOWS = 0,
+	LT_UNIX = 1,
+} NP_LINETYPE;
 
 #define BOM_UTF8_HALF        0xBBEF
 #define BOM_UTF8_2HALF       0xBF
@@ -170,7 +174,10 @@ typedef enum _NP_FILETYPE {
 
 #define IDS_LETTERS          45    /* formatting letters used in page setup */
 
-#define CSTRINGS             45    /* cnt of stringtable strings from .rc file */
+#define IDS_LT_WINDOWS		 46
+#define IDS_LT_UNIX			 47
+
+#define CSTRINGS             47    /* cnt of stringtable strings from .rc file */
 
 // This string is used by MUI for the "FriendlyTypeName".
 // See reference to it in hivecls.inx
@@ -284,6 +291,8 @@ extern TCHAR  szPrinterName []; /* name of the printer passed to PrintTo */
 
 extern NP_FILETYPE    g_ftOpenedAs;     /* file was opened           */
 extern NP_FILETYPE    g_ftSaveAs;       /* file was saved as type    */
+extern NP_FILETYPE    g_ltOpenedAs;
+extern NP_FILETYPE    g_ltSaveAs;
 
 extern UINT   wFRMsg;           /* message used in communicating    */
                                 /*   with Find/Replace dialog       */

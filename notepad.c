@@ -7,7 +7,6 @@
 #pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #include "precomp.h"
-#include <htmlhelp.h>
 
 #define DeepTrouble() MessageBox(hwndNP, szErrSpace, szNN, MB_SYSTEMMODAL|MB_OK|MB_ICONHAND);
 BOOL MergeStrings(TCHAR*, TCHAR*, TCHAR*);
@@ -57,8 +56,11 @@ BOOL     fMLE_is_broken= FALSE;
 OPENFILENAME OFN;                     /* passed to the File Open/save APIs */
 TCHAR szOpenFilterSpec[CCHFILTERMAX]; /* default open filter spec          */
 TCHAR szSaveFilterSpec[CCHFILTERMAX]; /* default save filter spec          */
-NP_FILETYPE g_ftOpenedAs=FT_UNKNOWN;  /* current file was opened           */
+NP_FILETYPE g_ftOpenedAs = FT_UNKNOWN;/* current file was opened           */
 NP_FILETYPE g_ftSaveAs;               /* current file was opened           */
+// these two are automatically handled and aren't offered as options in the dialogs
+NP_LINETYPE g_ltOpenedAs = LT_WINDOWS;
+NP_LINETYPE g_ltSaveAs; // unused for now
 
 FINDREPLACE FR;                       /* Passed to FindText()              */
 PAGESETUPDLG g_PageSetupDlg;
@@ -126,7 +128,9 @@ TCHAR *szHiddenFile     = (TCHAR*) IDS_HIDDEN_FILE;
 TCHAR *szOfflineFile    = (TCHAR*) IDS_OFFLINE_FILE;     
 TCHAR *szReadOnlyFile   = (TCHAR*) IDS_READONLY_FILE;    
 TCHAR *szSystemFile     = (TCHAR*) IDS_SYSTEM_FILE;      
-TCHAR *szFile           = (TCHAR*) IDS_FILE;             
+TCHAR *szFile           = (TCHAR*) IDS_FILE;
+TCHAR *szWindowsFile	= (TCHAR*) IDS_LT_WINDOWS;
+TCHAR *szUnixFile		= (TCHAR*) IDS_LT_UNIX;
 
 
 TCHAR **rgsz[CSTRINGS] = {
@@ -175,6 +179,8 @@ TCHAR **rgsz[CSTRINGS] = {
         &szSystemFile,
         &szFile,
         &szLetters,
+		&szWindowsFile,
+		&szUnixFile,
 };
 
 
@@ -617,6 +623,7 @@ IFileDialogCustomize *pfdc = NULL;
 const DWORD dwIDEncodingLabel = 0;
 const DWORD dwIDEncodingComboBox = 1;
 
+// Dialog hook for the NEW STYLE open dialog, run whenever the user selects a new item
 HRESULT STDMETHODCALLTYPE OnSelectionChange(IFileDialogEvents *pfde, IFileDialog *pfd) {
 	TCHAR szFileName[MAX_PATH];
 	LPWSTR szTempName;
@@ -710,7 +717,8 @@ BOOL NPOpenSave(
 		DWORD dwSelectedEncoding;
 		FILEOPENDIALOGOPTIONS dwFlags = 0;
 		LPWSTR szName = NULL;
-		COMDLG_FILTERSPEC filterFileExt[2] = {
+		COMDLG_FILTERSPEC filterFileExt[] = {
+//			{L"Text", L"*.ahk;*.asc;*.asm;*.bas;*.bat;*.c;*.c++;*.cpp;*.cc;*.cfg;*.cmd;*.cs;*.css;*.csv;*.def;*.dlg;*.f03;*.f08;*.f18;*.f4;*.f77;*.f90;*.f95;*.for;*.go;*.h;*.h++;*.hh;*.hpp;*.hta;*.htm;*.html;*.hxx;*.idl;*.ini;*.jl;*.java;*.js;*.json;*.lisp;*.lua;*.m4;*.md;*.nim;*.pas;*.pem;*.php;*.php3;*.php4;*.ps;*.rb;*.rc;*.reg;*.rgs;*.rs;*.rst;*.s;*.scala;*.scm;*.sh;*.shar;*.shtm;*.shtml;*.sl;*.svg;*.txt;*vb;*.vbox;*.vbs;*.y;*.yml;*.yaml"},
 			{L"Text Documents", L"*.txt"},
 			{L"All Files", L"*.*"}
 		};
@@ -728,8 +736,8 @@ BOOL NPOpenSave(
 		pfdcCall(StartVisualGroup, dwIDEncodingLabel, TEXT("&Encoding:"));
 		pfdcCall(AddComboBox, dwIDEncodingComboBox);
 		pfdcCall(AddControlItem, dwIDEncodingComboBox, FT_ANSI, szFtAnsi);
-		pfdcCall(AddControlItem, dwIDEncodingComboBox, FT_UNICODE, szFtUnicode);
-		pfdcCall(AddControlItem, dwIDEncodingComboBox, FT_UNICODEBE, szFtUnicodeBe);
+		pfdcCall(AddControlItem, dwIDEncodingComboBox, FT_UNICODE, szFtUnicode); // aka UTF-16 LE
+		pfdcCall(AddControlItem, dwIDEncodingComboBox, FT_UNICODEBE, szFtUnicodeBe); // aka UTF-16 BE
 		pfdcCall(AddControlItem, dwIDEncodingComboBox, FT_UTF8, szFtUtf8);
 		
 		switch (g_ftOpenedAs) {
@@ -1431,7 +1439,7 @@ WNDPROC FAR NPWndProc(
 {
     LPFINDREPLACE lpfr;
     DWORD dwFlags;
-    INT iParts[2];
+    INT iParts[3];
 
 
     switch (message)
@@ -1564,10 +1572,11 @@ WNDPROC FAR NPWndProc(
 
                     // resize the status window.
                     SendMessage (hwndStatus, WM_SIZE, 0, 0L);
-                    iParts[0] = 3 * (MAKEPOINTS(lParam).x)/4;
-                    iParts[1] = -1;
+                    iParts[0] = 2 * (MAKEPOINTS(lParam).x)/4;
+					iParts[1] = 3 * (MAKEPOINTS(lParam).x)/4;
+                    iParts[2] = -1;
 
-                    // Divide the status window into two parts
+                    // Divide the status window into three parts
                     SendMessage(hwndStatus, SB_SETPARTS, (WPARAM) sizeof(iParts)/sizeof(INT), (LPARAM) &iParts[0]); 
 
                     NPSize(MAKEPOINTS(lParam).x, MAKEPOINTS(lParam).y);
@@ -1820,12 +1829,14 @@ UnRegisterPenWindows:
 
 static DWORD iLastCol;
 static DWORD iLastLine;
+static NP_LINETYPE ltLastLineType;
 
 VOID UpdateStatusBar( BOOL fForceStatus )
 {
     DWORD SelStart, SelEnd;
     UINT  iLine, iCol;
     TCHAR szStatusText[128];
+	NP_LINETYPE ltLineType;
 
     // get the current caret position.
     SendMessage(hwndEdit,EM_GETSEL,(WPARAM) &SelStart,(WPARAM)&SelEnd);
@@ -1841,20 +1852,27 @@ VOID UpdateStatusBar( BOOL fForceStatus )
         // make sure you don't overflow the buffer boundary.
         _sntprintf(szStatusText, sizeof(szStatusText)/sizeof(TCHAR) -1, szLineCol, iLine, iCol);
         szStatusText[ sizeof(szStatusText)/sizeof(TCHAR) -1 ] = TEXT('\0');
-        SetStatusBarText(szStatusText, 1);
-            
+        SetStatusBarText(szStatusText, 2);
     }
 
+	ltLineType = g_ltOpenedAs;
+
+	if (ltLineType != ltLastLineType) {
+		switch (g_ltOpenedAs) {
+		case LT_WINDOWS:	SetStatusBarText(szWindowsFile, 1); break;
+		case LT_UNIX:		SetStatusBarText(szUnixFile, 1); break;
+		}
+	}
+
+	ltLastLineType = ltLineType;
     iLastCol=  iCol;
     iLastLine= iLine;
-
 };
 
 VOID CALLBACK WinEventFunc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject,
                       LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime)
 {
     UpdateStatusBar( FALSE );
-
 }
 
 
@@ -1949,15 +1967,22 @@ void FAR SetTitle( TCHAR  *sz )
 
     }
 
-    // set the status bar. the Line and Col count is 1 initially for
-    // the newly opened file as the caret position is at the first character.
-    // SetStatusBarText(szStatusText, 0);
-    _sntprintf(szStatusText, sizeof(szStatusText)/sizeof(TCHAR) -1, szLineCol, 1, 1);
-    SetStatusBarText(szStatusText, 1);
+    // set the line ending type displayed to the user upon opening a new
+	// file
+	switch (g_ltOpenedAs) {
+	case LT_WINDOWS:	SetStatusBarText(szWindowsFile, 1); break;
+	case LT_UNIX:		SetStatusBarText(szUnixFile, 1); break;
+	}
+	// Note: Commenting out the two lines below, and replacing with a call to UpdateStatusBar,
+	// fixes a bug in all official Microsoft versions of Notepad, in which saving the file resets
+	// the displayed cursor position (but not the actual cursor position) to 1,1 for some reason.
+	// If this introduces a regression, the old behavior can be restored by uncommenting.
+    //_sntprintf(szStatusText, sizeof(szStatusText)/sizeof(TCHAR) -1, szLineCol, 1, 1);
+    //SetStatusBarText(szStatusText, 2);
+	UpdateStatusBar(TRUE);
 
     lstrcat(szWindowText, szNpTitle);
     SetWindowText(hwndNP, (LPTSTR)szWindowText);
-
 }
 
 /* ** Given filename which may or maynot include path, return pointer to
@@ -2458,8 +2483,3 @@ NP_FILETYPE fDetermineFileType(LPBYTE lpFileContents, UINT iSize)
     return ftFileType;
 
 }
-
-
-
-
-

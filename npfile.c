@@ -108,25 +108,40 @@ BOOL AnsiWriteFile(HANDLE  hFile,    // file to write to
        return (FALSE);
     }
 
-    bStatus= 
-    WideCharToMultiByte( uCodePage,             // code page
-                         dwFlags,               // performance and mapping flags
-                        (LPWSTR) lpBuffer,      // wide char buffer
-                         nChars,                // chars in wide char buffer
-                         lpAnsi,                // resultant ascii string
-                         nBytes,                // size of ascii string buffer
-                         NULL,                  // char to sub. for unmapped chars (use default)
-                         pfDefCharUsed);        // flag to set if default char used
+	bStatus= 
+	WideCharToMultiByte(uCodePage,             // code page
+						dwFlags,               // performance and mapping flags
+						(LPWSTR) lpBuffer,      // wide char buffer
+						nChars,                // chars in wide char buffer
+						lpAnsi,                // resultant ascii string
+						nBytes,                // size of ascii string buffer
+						NULL,                  // char to sub. for unmapped chars (use default)
+						pfDefCharUsed);        // flag to set if default char used
 
-    if( bStatus ) 
-    {
+	// strip out all Carriage Returns in lpAnsi in-place (WOW FANCY)
+	if (bStatus && g_ltOpenedAs == LT_UNIX) {
+		UINT i;
+		LPSTR lpAnsiOriginal = lpAnsi;
+		UINT nBytesOriginal = nBytes;
+
+		for (i = 0; i < nBytesOriginal; ++i) {
+			if (lpAnsiOriginal[i] == '\r') {
+				--nBytes; // don't write garbage after the end...
+				continue; // skip processing CR
+			}
+
+			*lpAnsi++ = lpAnsiOriginal[i];
+		}
+
+		lpAnsi = lpAnsiOriginal;
+	}
+
+    if (bStatus) {
         bStatus= WriteFile( hFile, lpAnsi, nBytes, &nBytesWritten, NULL );
     }
 
     LocalFree( lpAnsi );
-
     return( bStatus );
-
 } // end of AnsiWriteFile()
 
 
@@ -423,7 +438,11 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
     HANDLE    hMap;             // file mapping handle
     TCHAR     szNullFile[2];    // fake null mapped file
     INT       cpTemp = CP_ACP;
-    NP_FILETYPE ftOpenedAs=FT_UNKNOWN;
+    NP_FILETYPE ftOpenedAs = FT_UNKNOWN;
+	NP_LINETYPE ltOpenedAs = LT_WINDOWS;
+	ULONG nCR = 0;
+	ULONG nLF = 0;
+	ULONG nCRsToAdd = 0;
 
 
     if( fp == INVALID_HANDLE_VALUE )
@@ -685,7 +704,6 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
         }
     }
 
-
     // find out no. of chars present in the string.
     if (!bUnicode)
     {
@@ -697,26 +715,40 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
                                       0);
     }
 
-    //
-    // Don't display text until all done.
-    //
+	// figure out if the file uses Unix or Windows style line endings
+	// count the number of \r and the number of \n
+	if (ftOpenedAs == FT_ANSI || ftOpenedAs == FT_UTF8) {
+		nCR = 0; nLF = 0;
+		for (i = 0; i < len; ++i) { // scan max 4kb of the file
+			switch (lpBufAfterBOM[i]) {
+			case '\r': ++nCR; break;
+			case '\n': ++nLF; break;
+			}
+		}
 
+		if (nCR == 0 && nLF > 0)	ltOpenedAs	= LT_UNIX;
+		else if (nCR >= nLF)		ltOpenedAs	= LT_WINDOWS;
+		else						ltOpenedAs	= LT_WINDOWS;
+		// the amount of CRs that have to be added in order to get the
+		// multiline edit to display it properly
+		nCRsToAdd = nLF - nCR;
+		nChars += nCRsToAdd;
+	}
+
+    // Don't display text until all done.
     SendMessage (hwndEdit, WM_SETREDRAW, (WPARAM)FALSE, (LPARAM)0);
 
     // Reset selection to 0
-
     SendMessage(hwndEdit, EM_SETSEL, 0, 0L);
     SendMessage(hwndEdit, EM_SCROLLCARET, 0, 0);
 
     // resize the edit buffer
     // if we can't resize the memory, inform the user
-
     if (!(hNewEdit= LocalReAlloc(hEdit,ByteCountOf(nChars + 1),LMEM_MOVEABLE)))
     {
       /* Bug 7441: New() causes szFileName to be set to "Untitled".  Save a
        *           copy of the filename to pass to AlertBox.
-       *  17 November 1991    Clark R. Cyr
-       */
+       *  17 November 1991    Clark R. Cyr */
        lstrcpy(szSave, sz);
        New(FALSE);
 
@@ -725,48 +757,61 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
 
        AlertBox( hwndNP, szNN, szFTL, szSave,
                  MB_APPLMODAL | MB_OK | MB_ICONEXCLAMATION);
-       if( lpBuf != (LPTSTR) &szNullFile )
-       {
-           UnmapViewOfFile( lpBuf );
+       if( lpBuf != (LPTSTR) &szNullFile ) {
+           UnmapViewOfFile(lpBuf);
        }
 
        // let user see old text
-
        SendMessage (hwndEdit, WM_SETREDRAW, (WPARAM)FALSE, (LPARAM)0);
        return FALSE;
     }
 
     /* Transfer file from temporary buffer to the edit buffer */
-    lpch= (LPTSTR) LocalLock(hNewEdit);
+    lpch = (LPTSTR) LocalLock(hNewEdit);
 
     if( bUnicode )
     {
        /* skip the Byte Order Mark */
-       if (*lpBuf == BYTE_ORDER_MARK)
-       {
+       if (*lpBuf == BYTE_ORDER_MARK) {
           CopyMemory (lpch, lpBuf + 1, ByteCountOf(nChars));
-       }
-       else if( *lpBuf == REVERSE_BYTE_ORDER_MARK )
-       {
+       } else if( *lpBuf == REVERSE_BYTE_ORDER_MARK ) {
           ReverseEndian( lpch, lpBuf+1, nChars );          
-       }
-       else
-       {
+       } else {
           CopyMemory (lpch, lpBuf, ByteCountOf(nChars));
        }
-    }
-    else
-    {      
-       nChars = MultiByteToWideChar (cpTemp,
-                                     0,
-                                     (LPSTR)lpBufAfterBOM,
-                                     len,
-                                     (LPWSTR)lpch,
-                                     nChars);
-       
+    } else {
+		if (ltOpenedAs == LT_UNIX) {
+			LPTSTR lpchOriginal = lpch; // save the pointer
+
+			// perform on the fly conversion to CRLF
+			for (i = 0; i < len; ++i) {
+				switch (lpBufAfterBOM[i]) {
+				case '\r':
+					break;
+				case '\n':
+					*lpch++ = (TCHAR) '\r';
+					*lpch++ = (TCHAR) '\n';
+					break;
+				default:
+					*lpch++ = (TCHAR) lpBufAfterBOM[i];
+					break;
+				}
+			}
+
+			//*lpch++ = (TCHAR) '\0';
+			lpch = lpchOriginal;
+		} else {
+			nChars = MultiByteToWideChar(cpTemp,
+										 0,
+										 (LPSTR)lpBufAfterBOM,
+										 len,
+										 (LPWSTR)lpch,
+										 nChars);
+		}
     }
 
-    g_ftOpenedAs= ftOpenedAs;   // got everything; update global safe now
+    g_ftOpenedAs = ftOpenedAs;   // got everything; update global safe now
+	g_ltOpenedAs = ltOpenedAs;
 
     } 
     __except(EXCEPTION_EXECUTE_HANDLER)
@@ -777,39 +822,28 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
     }
 
     /* Free file mapping */
-    if( lpBuf != (LPTSTR) &szNullFile )
-    {
+    if( lpBuf != (LPTSTR) &szNullFile ) {
         UnmapViewOfFile( lpBuf );
     }
 
-
-    if( lpch ) 
-    {
-
+    if (lpch) {
        // Fix any NUL character that came in from the file to be spaces.
-
-       for (i = 0, p = lpch; i < nChars; i++, p++)
-       {
+       for (i = 0, p = lpch; i < nChars; i++, p++) {
           if( *p == (TCHAR) 0 )
              *p= TEXT(' ');
        }
       
        // null terminate it.  Safe even if nChars==0 because it is 1 TCHAR bigger
-
-       *(lpch+nChars)= (TCHAR) 0;      /* zero terminate the thing */
+       *(lpch+nChars)= (TCHAR) 0;
    
        // Set 'fLog' if first characters in file are ".LOG"
-   
        fLog= *lpch++ == TEXT('.') && *lpch++ == TEXT('L') &&
              *lpch++ == TEXT('O') && *lpch == TEXT('G');
     }
    
-    if( hNewEdit )
-    {
+    if (hNewEdit) {
        LocalUnlock( hNewEdit );
-
        // now it is safe to set the global edit handle
-
        hEdit= hNewEdit;
     }
 

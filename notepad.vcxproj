@@ -30,7 +30,6 @@
   <ItemGroup>
     <None Include="notepad.def" />
     <None Include="notepad.dlg" />
-    <None Include="notepad.rcv" />
     <None Include="notepad.ico" />
   </ItemGroup>
   <ItemGroup>

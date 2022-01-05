@@ -739,7 +739,7 @@ INT FAR NPInit (HANDLE hInstance, HANDLE hPrevInstance,
     RECT   rcStatus;       /* rect for the status window */
     INT    iSta;
     WINDOWPLACEMENT wp;    /* structure to place window at the correct position */
-    INT    iParts[2];
+    INT    iParts[3];
     HMENU  hMenu;          // handle to the menu.
 
 
@@ -794,7 +794,6 @@ INT FAR NPInit (HANDLE hInstance, HANDLE hPrevInstance,
     //
 
     GetGlobals();
-
 
     hwndNP= CreateWindow(  szNotepad, 
                            TEXT(""),
@@ -865,9 +864,10 @@ INT FAR NPInit (HANDLE hInstance, HANDLE hPrevInstance,
     dyStatus = rcStatus.bottom - rcStatus.top;
 
     iParts[0] = 3 * (rcStatus.right-rcStatus.left)/4;
-    iParts[1] = -1;
+	iParts[1] = 4 * (rcStatus.right-rcStatus.left)/4;
+    iParts[2] = -1;
 
-    // Divide the status window into two parts
+    // Divide the status window into three parts
     SendMessage(hwndStatus, SB_SETPARTS, (WPARAM) sizeof(iParts)/sizeof(INT), (LPARAM) &iParts[0]); 
  
 
