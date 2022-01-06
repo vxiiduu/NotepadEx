@@ -1300,6 +1300,8 @@ void doDrop (WPARAM wParam, HWND hwnd)
     DragFinish ((HANDLE)wParam);  /* Delete structure alocated for WM_DROPFILES*/
 }
 
+typedef HRESULT (WINAPI *TDI)(const TASKDIALOGCONFIG *, int *, int *, BOOL *);
+
 /* ** if notepad is dirty, check to see if user wants to save contents */
 BOOL FAR CheckSave (BOOL fSysModal)
 {
@@ -1308,7 +1310,9 @@ BOOL FAR CheckSave (BOOL fSysModal)
     TCHAR *pszFileName;
 	INT iAllocSize;                   // size needed for message
     TCHAR*  pszMessage;               // combined message
+	TDI __TaskDialogIndirect;
 	TASKDIALOGCONFIG tdc;
+	
 	TASKDIALOG_BUTTON tdButtons[] = {
 		{IDYES, TEXT("Save")},
 		{IDNO, TEXT("Don't Save")},
@@ -1326,32 +1330,34 @@ BOOL FAR CheckSave (BOOL fSysModal)
        else
            pszFileName= szFileName;
 
-       // put up message box
-       fInSaveAsDlg= TRUE;     // inform wm_queryendsession that we are trying to save
+       // put up message box - XP style or Vista style depending on whether it is available
+	   if ((__TaskDialogIndirect = (TDI) GetProcAddress(GetModuleHandleA("COMCTL32.DLL"), "TaskDialogIndirect")) == NULL) {
+		   // use XP style MessageBox
+		   fInSaveAsDlg= TRUE;     // inform wm_queryendsession that we are trying to save
+		   mdResult= AlertBox(hwndNP, szNN, szSCBC, pszFileName,
+                              (WORD)((fSysModal ? MB_SYSTEMMODAL :
+                              MB_APPLMODAL)|MB_YESNOCANCEL|MB_ICONEXCLAMATION));
+	   } else {
+		   // use Task Dialog like in Vista and up
+		   iAllocSize= (lstrlen(szSCBC) + (pszFileName ? lstrlen(pszFileName) : 0) + 1 ) * sizeof(TCHAR);
+		   pszMessage= (TCHAR*) LocalAlloc( LPTR, iAllocSize );
 
-       //mdResult= AlertBox( hwndNP, szNN, szSCBC, pszFileName,
-       //(WORD)((fSysModal ? MB_SYSTEMMODAL :
-       //                    MB_APPLMODAL)|MB_YESNOCANCEL|MB_ICONEXCLAMATION));
-
-	   // use Task Dialog like in win7 np
-
-	   iAllocSize= (lstrlen(szSCBC) + (pszFileName ? lstrlen(pszFileName) : 0) + 1 ) * sizeof(TCHAR);
-	   pszMessage= (TCHAR*) LocalAlloc( LPTR, iAllocSize );
-	   if( pszMessage ) {
-		   MergeStrings( szSCBC, pszFileName, pszMessage );
-       } else {
-		   pszMessage = szSCBC;
-       }
-	   tdc.cbSize = sizeof(tdc);
-	   tdc.hwndParent = hwndNP;
-	   tdc.hInstance = (HINSTANCE) hInstanceNP;
-	   tdc.pszWindowTitle = szNN;
-	   tdc.pszMainInstruction = pszMessage;
-	   tdc.dwCommonButtons = TDCBF_CANCEL_BUTTON;
-	   tdc.cButtons = 2;
-	   tdc.pButtons = tdButtons;
-	   TaskDialogIndirect(&tdc, &mdResult, NULL, NULL);
-	   if (pszMessage != szSCBC) LocalFree( (HLOCAL) pszMessage );
+	       if( pszMessage ) {
+		       MergeStrings( szSCBC, pszFileName, pszMessage );
+           } else {
+		       pszMessage = szSCBC;
+           }
+	       tdc.cbSize = sizeof(tdc);
+	       tdc.hwndParent = hwndNP;
+	       tdc.hInstance = (HINSTANCE) hInstanceNP;
+	       tdc.pszWindowTitle = szNN;
+	       tdc.pszMainInstruction = pszMessage;
+	       tdc.dwCommonButtons = TDCBF_CANCEL_BUTTON;
+	       tdc.cButtons = 2;
+	       tdc.pButtons = tdButtons;
+	       __TaskDialogIndirect(&tdc, &mdResult, NULL, NULL);
+	       if (pszMessage != szSCBC) LocalFree( (HLOCAL) pszMessage );
+	   }
 
        fInSaveAsDlg= FALSE;
 
