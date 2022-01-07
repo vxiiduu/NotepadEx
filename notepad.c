@@ -7,6 +7,7 @@
 #pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #include "precomp.h"
+#include <HtmlHelp.h>
 
 #define DeepTrouble() MessageBox(hwndNP, szErrSpace, szNN, MB_SYSTEMMODAL|MB_OK|MB_ICONHAND);
 BOOL MergeStrings(TCHAR*, TCHAR*, TCHAR*);
@@ -1031,14 +1032,19 @@ INT NPCommand(
             break;
 
         case M_HELP:
-            // more COM bullshit...
 			CLSIDFromString(L"{8cec58e7-07a1-11d9-b15e-000d56bfe6ee}", &CLSID_HxHelpPane);
 			IIDFromString(L"{8cec5884-07a1-11d9-b15e-000d56bfe6ee}", &IID_IHxHelpPane);
-			if (!(helpURI = SysAllocString(L"mshelp://Windows/?id=5d18d5fb-e737-4a73-b6cc-dccc63720231"))) break;
-			if (!SUCCEEDED(CoCreateInstance(&CLSID_HxHelpPane, NULL, CLSCTX_INPROC_SERVER, &IID_IHxHelpPane, &php))) break;
-			php->lpVtbl->DisplayTask(php, helpURI);
-			php->lpVtbl->Release(php); php = NULL;
-			SysFreeString(helpURI); helpURI = NULL;
+
+			if (SUCCEEDED(CoCreateInstance(&CLSID_HxHelpPane, NULL, CLSCTX_INPROC_SERVER, &IID_IHxHelpPane, &php))) {
+				// Vista/7 windows help
+				if (!(helpURI = SysAllocString(L"mshelp://Windows/?id=5d18d5fb-e737-4a73-b6cc-dccc63720231"))) break;
+				php->lpVtbl->DisplayTask(php, helpURI);
+				php->lpVtbl->Release(php); php = NULL;
+				SysFreeString(helpURI); helpURI = NULL;
+			} else {
+				// XP style - note: on XP, the required CHM file is located at %WINDIR%\Help\notepad.chm
+				HtmlHelpA(GetDesktopWindow(), "notepad.chm", HH_DISPLAY_TOPIC, 0L);
+			}
             break;
 
         case M_CUT:
