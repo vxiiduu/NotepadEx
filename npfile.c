@@ -719,7 +719,7 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
 	// count the number of \r and the number of \n
 	if (ftOpenedAs == FT_ANSI || ftOpenedAs == FT_UTF8) {
 		nCR = 0; nLF = 0;
-		for (i = 0; i < len; ++i) { // scan max 4kb of the file
+		for (i = 0; i < len; ++i) {
 			switch (lpBufAfterBOM[i]) {
 			case '\r': ++nCR; break;
 			case '\n': ++nLF; break;
@@ -785,6 +785,24 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
 
 			// perform on the fly conversion to CRLF
 			for (i = 0; i < len; ++i) {
+				// handle non-ASCII characters
+				if (!isascii(lpBufAfterBOM[i])) {
+					// find how many non-ASCII characters there are (which probably corresponds to
+					// one or more UTF-8 characters)
+					UINT nNonAsciiBytes = 0;
+					UINT nNonAsciiChars = 0;
+					while (!isascii(lpBufAfterBOM[i+(nNonAsciiBytes++)]));
+					nNonAsciiChars = MultiByteToWideChar(cpTemp,
+														 0,
+														 (LPSTR)lpBufAfterBOM+i,
+														 nNonAsciiBytes,
+														 (LPWSTR)lpch,
+														 nChars);
+					lpch += nNonAsciiChars;
+					i += nNonAsciiBytes - 1;
+					continue;
+				}
+
 				switch (lpBufAfterBOM[i]) {
 				case '\r':
 					break;
