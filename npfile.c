@@ -414,6 +414,8 @@ CleanUp:
 
 } // end of SaveFile()
 
+typedef HRESULT (WINAPI *TD)(HWND, HINSTANCE, PCWSTR, PCWSTR, PCWSTR, TASKDIALOG_COMMON_BUTTON_FLAGS, PCWSTR, int *);
+
 /* Read contents of file from disk.
  * Do any conversions required.
  * File is already open, referenced by handle fp
@@ -440,13 +442,8 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
     INT       cpTemp = CP_ACP;
     NP_FILETYPE ftOpenedAs = FT_UNKNOWN;
 	NP_LINETYPE ltOpenedAs = LT_WINDOWS;
-	ULONG nCR = 0;
-	ULONG nLF = 0;
-	ULONG nCRsToAdd = 0;
 
-
-    if( fp == INVALID_HANDLE_VALUE )
-    {
+    if( fp == INVALID_HANDLE_VALUE ) {
        AlertUser_FileFail( sz );
        return (FALSE);
     }
@@ -718,7 +715,9 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
 	// figure out if the file uses Unix or Windows style line endings
 	// count the number of \r and the number of \n
 	if (ftOpenedAs == FT_ANSI || ftOpenedAs == FT_UTF8) {
-		nCR = 0; nLF = 0;
+		ULONG nCR = 0;
+		ULONG nLF = 0;
+
 		for (i = 0; i < len; ++i) {
 			switch (lpBufAfterBOM[i]) {
 			case '\r': ++nCR; break;
@@ -726,13 +725,12 @@ BOOL FAR LoadFile (TCHAR * sz, INT typeFlag )
 			}
 		}
 
-		if (nCR == 0 && nLF > 0)	ltOpenedAs	= LT_UNIX;
-		else if (nCR >= nLF)		ltOpenedAs	= LT_WINDOWS;
-		else						ltOpenedAs	= LT_WINDOWS;
-		// the amount of CRs that have to be added in order to get the
-		// multiline edit to display it properly
-		nCRsToAdd = nLF - nCR;
-		nChars += nCRsToAdd;
+		if (nCR == 0 && nLF > 0) {
+			ltOpenedAs	= LT_UNIX;
+			nChars += (nLF >= nCR) ? (nLF - nCR) : 0;
+		} else {
+			ltOpenedAs	= LT_WINDOWS;
+		}
 	}
 
     // Don't display text until all done.
