@@ -733,7 +733,7 @@ int CALLBACK EnumProc(
 
 
 /* One time initialization */
-INT FAR NPInit (HANDLE hInstance, HANDLE hPrevInstance,
+INT FAR NPInit (HINSTANCE hInstance, HINSTANCE hPrevInstance,
                 LPTSTR lpCmdLine, INT cmdShow)
 {
     HDC    hDisplayDC;     /* screen DC                */
@@ -888,6 +888,9 @@ INT FAR NPInit (HANDLE hInstance, HANDLE hPrevInstance,
                                  GetDeviceCaps(hDisplayDC,LOGPIXELSY),
                                  720);
     hFont= CreateFontIndirect( &FontStruct );
+
+	// handle tab stops
+	SendMessage(hwndEdit, EM_SETTABSTOPS, 1, (LPARAM) &iTabStops);
 
     //
     // Make sure the font mapper gives us the same face name.
