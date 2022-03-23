@@ -35,6 +35,7 @@ BOOL     fStatus = FALSE;            /* status bar shown?                       
 BOOL     fLastStatus = FALSE;        /* status bar status when wordwrap was turned off */
 INT      dyStatus;                   /* height of status bar                           */
 
+INT		iTabStops = 32;				/* width of tabs in the edit control, multiplied by 4 */
 
 HMENU    hSysMenuSetup;              /* Save Away for disabled Minimize   */
 
@@ -1250,6 +1251,27 @@ INT NPCommand(
             }
             break;
         }
+		
+		case M_TW2:
+		{
+			iTabStops = 8;
+			SendMessage(hwndEdit, EM_SETTABSTOPS, 1, (LPARAM) &iTabStops);
+			break;
+		}
+
+		case M_TW4:
+		{
+			iTabStops = 16;
+			SendMessage(hwndEdit, EM_SETTABSTOPS, 1, (LPARAM) &iTabStops);
+			break;
+		}
+		
+		case M_TW8:
+		{
+			iTabStops = 32;
+			SendMessage(hwndEdit, EM_SETTABSTOPS, 1, (LPARAM) &iTabStops);
+			break;
+		}
 
         default:
             return FALSE;
@@ -2035,7 +2057,7 @@ VOID NpResetMenu( HWND hwnd )
 {
     INT     mfcc;   /* menuflag for cut, copy  find, findnext */
     BOOL    fCanUndo;
-    HANDLE  hMenu;
+    HMENU  hMenu;
     BOOL    fPaste= FALSE;
     UINT    uSelState;
     DWORD   dwSelStart;
@@ -2100,11 +2122,14 @@ VOID NpResetMenu( HWND hwnd )
 
     CheckMenuItem(GetSubMenu(hMenu, 2), M_WW, fWrap ? MF_CHECKED : MF_UNCHECKED);
 
+	// tab stops/tab width menu
+	CheckMenuItem(GetSubMenu(hMenu, 2), M_TW2, iTabStops == 8 ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(GetSubMenu(hMenu, 2), M_TW4, iTabStops == 16 ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(GetSubMenu(hMenu, 2), M_TW8, iTabStops == 32 ? MF_CHECKED : MF_UNCHECKED);
+
     // check the status bar
 
     CheckMenuItem (GetSubMenu(hMenu, 3), M_STATUSBAR, fStatus ? MF_CHECKED: MF_UNCHECKED );
-
-
 }
 
 

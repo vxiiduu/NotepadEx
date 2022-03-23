@@ -21,10 +21,11 @@
 //               bug fix for handling non-ASCII characters in Unix line ending files
 // 1, 1, 4, 0 -> bug fix for handling files with more carriage returns than line feeds
 // 1, 2, 0, 0 -> remove CRT dependency and add Windows 2000 support
+// 1, 2, 1, 0 -> add configuration option to change tab width
 // Note: PRODUCTVERSION == FILEVERSION
 1 VERSIONINFO
-	FILEVERSION 1, 2, 0, 0
-	PRODUCTVERSION 1, 2, 0, 0
+	FILEVERSION 1, 2, 1, 0
+	PRODUCTVERSION 1, 2, 1, 0
 	FILEOS VOS_NT_WINDOWS32
 	FILETYPE VFT_APP
 BEGIN
@@ -32,12 +33,12 @@ BEGIN
 		BLOCK "040904B0" {
 			VALUE "Comments", "https://github.com/vxiiduu/NotepadEx"
 			VALUE "FileDescription", "Notepad"
-			VALUE "FileVersion", "1.2.0.0"
+			VALUE "FileVersion", "1.2.1.0"
 			VALUE "InternalName", "Notepad"
 			VALUE "LegalCopyright", "https://github.com/vxiiduu/NotepadEx"
 			VALUE "OriginalFilename", "NOTEPAD.EXE"
 			VALUE "ProductName", "NotepadEx"
-			VALUE "ProductVersion", "1.2.0.0"
+			VALUE "ProductVersion", "1.2.1.0"
 		}
 	}
 
@@ -90,6 +91,13 @@ BEGIN
         BEGIN
             MENUITEM    "&Word Wrap"      M_WW
             MENUITEM    "&Font...",       M_SETFONT
+
+			POPUP		"&Tab Width"
+				BEGIN
+					MENUITEM	"&2"		M_TW2
+					MENUITEM	"&4"		M_TW4
+					MENUITEM	"&8"		M_TW8
+				END
         END
 
     POPUP   "&View"

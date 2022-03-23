@@ -135,6 +135,7 @@ VOID SaveGlobals(VOID)
     RegWriteInt( hKey, TEXT("lfQuality"),        FontStruct.lfQuality);
     RegWriteInt( hKey, TEXT("lfPitchAndFamily"), FontStruct.lfPitchAndFamily);
     RegWriteInt( hKey, TEXT("iPointSize"),       iPointSize);
+	RegWriteInt( hKey, TEXT("iTabStops"),		 iTabStops);
     RegWriteInt( hKey, TEXT("fWrap"),            fWrap);
     RegWriteInt( hKey, TEXT("StatusBar"),        fStatus);
     RegWriteInt( hKey, TEXT("fSaveWindowPositions"),fSaveWindowPositions );
@@ -230,6 +231,7 @@ VOID GetGlobals( VOID )
     RegGetString( hKey, TEXT("lfFaceName"), TEXT("Lucida Console"), FontStruct.lfFaceName, LF_FACESIZE);
 
     iPointSize= RegGetInt( hKey, TEXT("iPointSize"), 100);
+	iTabStops=	RegGetInt( hKey, TEXT("iTabStops"),	 32);
     fWrap=      RegGetInt( hKey, TEXT("fWrap"),      0);
     fStatus=    RegGetInt( hKey, TEXT("StatusBar"),  0);
     fSaveWindowPositions= RegGetInt( hKey, TEXT("fSaveWindowPositions"), 0 );
@@ -254,10 +256,10 @@ VOID GetGlobals( VOID )
 
     fMLE_is_broken= RegGetInt( hKey, TEXT("fMLE_is_broken"), FALSE );  // assume edit control works
 
-    if( hKey )
-    {
-        RegCloseKey( hKey );
-    }
+	if( hKey )
+	{
+		RegCloseKey( hKey );
+	}
 
 }
 

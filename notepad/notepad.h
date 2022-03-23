@@ -89,6 +89,9 @@ typedef enum _NP_LINETYPE {
 // Format
 #define M_WW                 32
 #define M_SETFONT            33
+#define M_TW2				 34
+#define M_TW4				 35
+#define M_TW8				 36
 
 // Help
 #define M_HELP               64
@@ -291,8 +294,8 @@ extern TCHAR  szPrinterName []; /* name of the printer passed to PrintTo */
 
 extern NP_FILETYPE    g_ftOpenedAs;     /* file was opened           */
 extern NP_FILETYPE    g_ftSaveAs;       /* file was saved as type    */
-extern NP_FILETYPE    g_ltOpenedAs;
-extern NP_FILETYPE    g_ltSaveAs;
+extern NP_LINETYPE    g_ltOpenedAs;
+extern NP_LINETYPE    g_ltSaveAs;
 
 extern UINT   wFRMsg;           /* message used in communicating    */
                                 /*   with Find/Replace dialog       */
@@ -301,6 +304,8 @@ extern UINT   wHlpMsg;          /* message used in invoking help    */
 extern HMENU hSysMenuSetup;     /* Save Away for disabled Minimize   */
 extern BOOL  fStatus;
 extern INT   dyStatus;
+
+extern INT	 iTabStops;
 
 
 /* Macro for setting status bar - x is the text to set and n is the part number
@@ -394,8 +399,6 @@ VOID   PrintIt(PRINT_DIALOG_TYPE type);
 
 INT    IsTextUTF8   (LPSTR lpstrInputStream, INT iLen);
 INT    IsInputTextUnicode(LPSTR lpstrInputStream, INT iLen);
-
-
 
 // Help IDs for Notepad
 
