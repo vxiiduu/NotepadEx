@@ -1361,8 +1361,8 @@ BOOL FAR CheckSave (BOOL fSysModal)
 	TASKDIALOGCONFIG tdc;
 	
 	TASKDIALOG_BUTTON tdButtons[] = {
-		{IDYES, TEXT("Save")},
-		{IDNO, TEXT("Don't Save")},
+		{IDYES, TEXT("&Save")},
+		{IDNO, TEXT("Do&n't Save")},
 	};
 	ZeroMemory(&tdc, sizeof(tdc));
 
